@@ -1,6 +1,9 @@
+// Partially based off of public domain UDPSendReceive example by Michael Margolis
+
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 
+// Define Wi-Fi connection settings
 #ifndef STASSID
 #define STASSID "vummiv"
 #define STAPSK  ""
@@ -10,7 +13,6 @@ unsigned int localPort = 8888;      // local port to listen on
 
 // buffers for receiving and sending data
 char packetBuffer[UDP_TX_PACKET_MAX_SIZE]; //buffer to hold incoming packet,
-char  ReplyBuffer[] = "acknowledged\r\n";       // a string to send back
 
 WiFiUDP Udp;
 
@@ -21,7 +23,7 @@ byte mac[6];
 IPAddress serverIP(52, 73, 65, 98 );
 unsigned int serverPort = 1973;
 
-// Sends a RoboScape formatted message
+// Sends a Roboscape formatted message
 void roboscape_send(const char * msg, int len)
 {
   unsigned long time = millis();
@@ -31,7 +33,6 @@ void roboscape_send(const char * msg, int len)
   Udp.write(msg, len);
   Udp.endPacket();
 }
-
 
 // Motor pins
 const int m1a = 4;
@@ -47,10 +48,12 @@ void setup() {
   // Setup motor pins
   pinMode(m1a, OUTPUT);
   pinMode(m1b, OUTPUT);
-  digitalWrite(m1a, LOW);
-  digitalWrite(m1b, LOW);
   pinMode(m2a, OUTPUT);
   pinMode(m2b, OUTPUT);
+
+  // Start with motors off
+  digitalWrite(m1a, LOW);
+  digitalWrite(m1b, LOW);
   digitalWrite(m2a, LOW);
   digitalWrite(m2b, LOW);
   
@@ -60,6 +63,7 @@ void setup() {
   Serial.println();
   delay(1000);
   
+  // Connect to Wi-Fi
   if(STAPSK[0] != '\0'){
     Serial.println("Connecting with password");
     WiFi.begin(STASSID, STAPSK);
@@ -78,8 +82,10 @@ void setup() {
   Serial.printf("UDP server on port %d\n", localPort);
   Udp.begin(localPort);
 
+  // Get MAC address for Roboscape ID
   WiFi.macAddress(mac);
 
+  // Send heartbeat
   roboscape_send("I", 1);
 }
 
@@ -129,7 +135,7 @@ void loop() {
       int left = *(short*)(packetBuffer + 1) * 4;
       int right = *(short*)(packetBuffer + 3) * 4;
 
-
+      // Only set pin for direction we wish to travel
       if(left >= 0){
         analogWrite(m1a, left);
         analogWrite(m1b, 0);
@@ -138,6 +144,7 @@ void loop() {
         analogWrite(m1b, abs(left));
       }
 
+      // Only set pin for direction we wish to travel
       if(right >= 0){
         analogWrite(m2a, right);
         analogWrite(m2b, 0);
