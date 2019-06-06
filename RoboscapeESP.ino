@@ -1,6 +1,13 @@
 // Partially based off of public domain UDPSendReceive example by Michael Margolis
 
+#ifdef ARDUINO_ARCH_ESP32
+#include <WiFi.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
+#else
 #include <ESP8266WiFi.h>
+#endif
+
 #include <WiFiUdp.h>
 
 // Define Wi-Fi connection settings
@@ -11,6 +18,10 @@
 
 unsigned int localPort = 8888;      // local port to listen on
 
+#ifdef ARDUINO_ARCH_ESP32
+#define UDP_TX_PACKET_MAX_SIZE 128
+#endif
+
 // buffers for receiving and sending data
 char packetBuffer[UDP_TX_PACKET_MAX_SIZE]; //buffer to hold incoming packet,
 
@@ -19,28 +30,63 @@ WiFiUDP Udp;
 // MAC address for identification
 byte mac[6];
 
-// NetsBlox Server
+// NetsBlox/RoboScape Server
 IPAddress serverIP(52, 73, 65, 98 );
 unsigned int serverPort = 1973;
 
-// Sends a Roboscape formatted message
+// Sends a RoboScape formatted message
 void roboscape_send(const char * msg, int len)
 {
   unsigned long time = millis();
   Udp.beginPacket(serverIP, serverPort);
   Udp.write(mac, 6);
   Udp.write((byte *) &time, 4);
-  Udp.write(msg, len);
+  Udp.write((byte *)msg, len);
   Udp.endPacket();
 }
 
 // Motor pins
+#ifdef ARDUINO_ARCH_ESP32
+const int m1a = 10;
+const int m1b = 11;
+const int m2a = 27;
+const int m2b = 25;
+#else
 const int m1a = 4;
 const int m1b = 5;
 const int m2a = 14;
 const int m2b = 12;
+#endif
+
+#ifdef ARDUINO_ARCH_ESP32
+#define NUM_CHANNELS 4
+const int channels[NUM_CHANNELS] = { m1a, m1b, m2a, m2b };
+
+void analogWrite(const uint8_t pin, const int amount){
+  uint8_t channel = NUM_CHANNELS + 1;
+
+  for(int i = 0; i < NUM_CHANNELS; i++){
+    if(channels[i] == pin){
+      channel = i + 1;
+    }
+  }
+
+  // Only valid channels
+  if(channel > NUM_CHANNELS){
+    return;
+  }
+
+  ledcWrite(channel, amount);
+}
+
+#endif
 
 void setup() {
+  
+#ifdef ARDUINO_ARCH_ESP32
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
+#endif
+
   // Setup LED pin
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, HIGH);
@@ -58,8 +104,11 @@ void setup() {
   digitalWrite(m2b, LOW);
   
   Serial.begin(115200);
-  WiFi.setSleepMode(WIFI_NONE_SLEEP);
   
+#ifndef ARDUINO_ARCH_ESP32
+  WiFi.setSleepMode(WIFI_NONE_SLEEP);
+#endif
+
   Serial.println();
   delay(1000);
   
@@ -82,11 +131,19 @@ void setup() {
   Serial.printf("UDP server on port %d\n", localPort);
   Udp.begin(localPort);
 
-  // Get MAC address for Roboscape ID
+  // Get MAC address for RoboScape ID
   WiFi.macAddress(mac);
 
   // Send heartbeat
   roboscape_send("I", 1);
+
+  // Setup PWM for ESP32
+#ifdef ARDUINO_ARCH_ESP32
+  for(int i = 0; i < NUM_CHANNELS; i++){
+    ledcAttachPin(channels[i], i + 1);
+    ledcSetup(i + 1, 12000, 8); 
+  }
+#endif
 }
 
 void loop() {
