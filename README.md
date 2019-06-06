@@ -1,5 +1,16 @@
 # RoboscapeESP
-Roboscape firmware for ESP8266 boards (ESP32 coming soon)
+Roboscape firmware for ESP8266/ESP32 boards.
+
+## Usage
+
+### Installing 
+
+Open the .ino file in the Arduino IDE. The `STASSID` and `STAPSK` #defines will need to be given a value that matches your access point. Then simply upload it to the board and hook the pins up.
+
+If you do not have the ESP board available in your Arduino IDE, add `https://dl.espressif.com/dl/package_esp32_index.json, http://arduino.esp8266.com/stable/package_esp8266com_index.json` to the "Additional Board Manager URLs" field in the preferences.
+
+### Pins
+TBD
 
 ## Current status
 
