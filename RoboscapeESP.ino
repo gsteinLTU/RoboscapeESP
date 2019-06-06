@@ -2,8 +2,6 @@
 
 #ifdef ARDUINO_ARCH_ESP32
 #include <WiFi.h>
-#include "soc/soc.h"
-#include "soc/rtc_cntl_reg.h"
 #else
 #include <ESP8266WiFi.h>
 #endif
@@ -47,10 +45,10 @@ void roboscape_send(const char * msg, int len)
 
 // Motor pins
 #ifdef ARDUINO_ARCH_ESP32
-const int m1a = 10;
-const int m1b = 11;
-const int m2a = 27;
-const int m2b = 25;
+const int m1a = 33;
+const int m1b = 25;
+const int m2a = 18;
+const int m2b = 5;
 #else
 const int m1a = 4;
 const int m1b = 5;
@@ -67,7 +65,7 @@ void analogWrite(const uint8_t pin, const int amount){
 
   for(int i = 0; i < NUM_CHANNELS; i++){
     if(channels[i] == pin){
-      channel = i + 1;
+      channel = i;
     }
   }
 
@@ -83,10 +81,6 @@ void analogWrite(const uint8_t pin, const int amount){
 
 void setup() {
   
-#ifdef ARDUINO_ARCH_ESP32
-  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable brownout detector
-#endif
-
   // Setup LED pin
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, HIGH);
@@ -140,13 +134,15 @@ void setup() {
   // Setup PWM for ESP32
 #ifdef ARDUINO_ARCH_ESP32
   for(int i = 0; i < NUM_CHANNELS; i++){
-    ledcAttachPin(channels[i], i + 1);
-    ledcSetup(i + 1, 12000, 8); 
+    ledcAttachPin(channels[i], i);
+    ledcSetup(i, 5000, 8); 
   }
 #endif
+
 }
 
 void loop() {
+  
   // if there's data available, read a packet
   int packetSize = Udp.parsePacket();
   if (packetSize) {
@@ -215,5 +211,6 @@ void loop() {
     roboscape_send(packetBuffer, packetSize);
     
   }
-  delay(1);
+  
+  delay(10);
 }
