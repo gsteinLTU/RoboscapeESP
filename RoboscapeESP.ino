@@ -79,6 +79,23 @@ void analogWrite(const uint8_t pin, const int amount){
 
 #endif
 
+void connect() {
+  if(STAPSK[0] != '\0'){
+    Serial.println("Connecting with password");
+    WiFi.begin(STASSID, STAPSK);
+  } else {
+    Serial.println("Connecting without password");
+    WiFi.begin(STASSID);
+  }
+}
+
+
+int sign(int n){
+  if(n == 0)
+    return 0;
+  return n / abs(n);
+};
+
 void setup() {
   
   // Setup LED pin
@@ -107,19 +124,15 @@ void setup() {
   delay(1000);
   
   // Connect to Wi-Fi
-  if(STAPSK[0] != '\0'){
-    Serial.println("Connecting with password");
-    WiFi.begin(STASSID, STAPSK);
-  } else {
-    Serial.println("Connecting without password");
-    WiFi.begin(STASSID);
-  }
+  connect();
+  
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(WiFi.status());
     Serial.print(WiFi.RSSI());
     Serial.println();
     delay(500);
   }
+  
   Serial.print("Connected! IP address: ");
   Serial.println(WiFi.localIP());
   Serial.printf("UDP server on port %d\n", localPort);
@@ -185,9 +198,12 @@ void loop() {
     if(packetBuffer[0] == 'S' && packetSize >= 5)
     {
       Serial.println("set speed command");
+      
       int left = *(short*)(packetBuffer + 1) * 4;
+      left += 25 * sign(left);
       int right = *(short*)(packetBuffer + 3) * 4;
-
+      right += 25 * sign(right);
+      
       // Only set pin for direction we wish to travel
       if(left >= 0){
         analogWrite(m1a, left);
@@ -210,6 +226,22 @@ void loop() {
     // send a reply
     roboscape_send(packetBuffer, packetSize);
     
+  }
+
+  // Attempt to reconnect
+  if(WiFi.status() != WL_CONNECTED){
+    
+    analogWrite(m1a, 0);
+    analogWrite(m1b, 0);
+    analogWrite(m2a, 0);
+    analogWrite(m2b, 0);
+    WiFi.disconnect();
+    connect();
+    
+    // Wait a while before trying again
+    if(WiFi.status() != WL_CONNECTED){
+      delay(500);
+    }
   }
   
   delay(10);
